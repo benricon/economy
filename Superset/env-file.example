@@ -1,0 +1,2 @@
+SUPERSET_SECRET_KEY='WYo6qtV3itLEBjlSFHi42ch/2z6o8DzVg/7FDPjCENfv6r+JF78POo9V'
+SQLALCHEMY_DATABASE_URI=postgresql://supersetuser:supersetuserpassword@192.168.3.22:5432/superset
