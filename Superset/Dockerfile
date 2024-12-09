@@ -1,5 +1,4 @@
-ARG PYTHON_VERSION=3.11
-FROM python:$PYTHON_VERSION
+FROM python:3.11.11-slim-bullseye
 
 # Configure environment
 # superset/gunicorn recommended defaults:
@@ -21,18 +20,20 @@ ENV GUNICORN_CMD_ARGS="--bind $GUNICORN_BIND --limit-request-field_size $GUNICOR
 
 
 # Configure filesystem
-COPY bin /usr/local/bin
-COPY superset_config.py /home/superset/superset_config.py
+
 VOLUME /etc/superset
 VOLUME /home/superset
 VOLUME /var/lib/superset
+
+COPY bin /usr/local/bin
+COPY superset_config.py /home/superset/superset_config.py
 
 ENV SUPERSET_CONFIG_PATH=/home/superset/superset_config.py
 
 # Create superset user & install dependencies
 WORKDIR /home/superset
-RUN groupadd supergroup && \
-    useradd -U -G supergroup superset && \
+RUN groupadd supergroup
+RUN useradd -U -G supergroup superset && \
     mkdir -p $SUPERSET_HOME && \
     mkdir -p /etc/superset && \
     chown -R superset:superset $SUPERSET_HOME && \
@@ -41,6 +42,7 @@ RUN groupadd supergroup && \
     apt-get update && \
     apt-get install -y \
     build-essential \
+    libpq-dev \
     curl &&\
     apt-get clean && \
     pip install -U pip

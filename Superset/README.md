@@ -29,7 +29,7 @@ Change ownership of the new database the to new user
 
 ```ALTER DATABASE superset OWNER TO supersetuser;```
 
-### 1. Creating dockerfile for superset ###
+### 2. Creating dockerfile for superset ###
 The ```env-file```was used to determine which environment variables to handle when deploying in k3s. The ```superset_config.py``` enables the database uri to be defined via a environment variable. The requirement.txt is used to ensure the same versions of packages are en installed every time.
 
 Build the docker image:
@@ -55,6 +55,28 @@ When a running image has been created update the ```requirements.txt``` by conne
 And getting all of the installed packages:
 
 ```pip freeze```
+
+### 3. Deploying superset to k3s ###
+
+To deploy my image to k3s, I needed to have the image stored in a registry. Instead of setting up my own, I opted for Docker Hub's personal subscription.  
+
+I also needed to ensure my image was available for a suitable architecture. For this reason, I had to build my image for multiple architectures. To achieve this, I followed **Strategy 1** described in the [Docker documentation](https://docs.docker.com/build/building/multi-platform/#simple-multi-platform-build-using-emulation).  
+
+The base image I initially selected did not have support for the Arm64 architecture. As a result, I had to change the base image. After enabling the necessary Docker components, the images were built using the following command:  
+
+```docker build --platform linux/amd64,linux/arm64/v8 -t benricon/superset:latest .```
+
+Before pushing images to Docker Hub, the local Docker instance must be signed into Docker Hub. This can be achieved by following this [example](https://stackoverflow.com/questions/57108005/how-to-login-to-docker-hub-on-the-command-line)
+
+Once logged in, the images can be pushed to Docker Hub using:
+
+```docker image push benricon/superset:latest```
+
+Based on the environment variables determined in Step 2, the YAML files included in this folder were constructed. These files assume the namespace *economy* has been created. You can either create this manually or deploy the ```economy-namespace.yaml``` file in the parent folder.
+
+For this deployment, the environment variables passed to the container are stored as Kubernetes secrets. Since I used Portainer to manage deployments, I first deployed the ```superset-secrets.yaml``` file and updated the values through the Portainer GUI.
+
+Once the secrets have been deployed, the PostgreSQL container can be deployed using the YAML configuration files.
 
 ### Starting superset for the first time ###
 

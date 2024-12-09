@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: superset
+  namespace: economy
+spec:
+  ports:
+    - port: 8088
+      targetPort: 8088
+  selector:
+    app: superset
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superset
+  namespace: economy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superset
+  template:
+    metadata:
+      labels:
+        app: superset
+    spec:
+      containers:
+        - name: superset
+          image: benricon/superset:latest
+          ports:
+            - containerPort: 8088
+          env:
+            - name: SUPERSET_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: economy-superset-secret
+                  key: SUPERSET_SECRET_KEY
+            - name: SQLALCHEMY_DATABASE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: economy-superset-secret
+                  key: SQLALCHEMY_DATABASE_URI
+
