@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <!-- Flash message display -->
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul>
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <h2>Upload CSV File</h2>
+    <form action="{{ url_for('upload_csv') }}" method="POST" enctype="multipart/form-data">
+        <label for="file">Choose CSV File:</label>
+        <input type="file" name="file" id="file" accept=".csv" required>
+        <button type="submit">Upload</button>
+    </form>
+
+{% endblock %}
