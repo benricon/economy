@@ -134,6 +134,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         {% else %}
                             <span>None</span>
                         {% endif %}
+                            <span><a href="sub_transactions/{{transaction.id}}">Split</a></a></span>
                     </td>
                     <td>
                         <form id="rowid_{{transaction.id}}" method="post">

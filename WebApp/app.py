@@ -7,6 +7,7 @@ import csv
 from io import StringIO
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from sqlalchemy.orm import aliased
 
 app = Flask(__name__)
 app.config.from_object("config.Config")
@@ -20,67 +21,14 @@ def home():
     # Redirect to the home route
     return redirect('/transactions')
 
-
-
-@app.cli.command('seed1')
-def seed1():
-    """Insert initial rows into the database."""
-    try:
-        # Add level 1  and 3 categories
-        categories = [
-            Category(name='Faste udgifter', level=1),
-            Category(name='Underholdning', level=1),
-            Category(name='Hobby', level=1),
-            Category(name='Bjarne', level=3),
-            Category(name='Rebecca', level=3),
-            Category(name='Fælles', level=3)
-        ]
-        db.session.add_all(categories)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error seeding the database: {e}")
-
-@app.cli.command('seed2')
-def seed2():
-    """Insert initial rows into the database."""
-    try:
-
-        # Add level 2 categories
-        FasteUdgifter_id = db.session.query(Category.id).filter(Category.name=="Faste udgifter").one()[0]
-        Underholdning_id = db.session.query(Category.id).filter(Category.name=="Underholdning").one()[0]
-        Hobby_id = db.session.query(Category.id).filter(Category.name=="Hobby").one()[0]
-        print(FasteUdgifter_id, Underholdning_id, Hobby_id)
-        subcategories = [
-            Category(name='Husleje', level=2, parent=FasteUdgifter_id),
-            Category(name='El', level=2, parent=FasteUdgifter_id),
-            Category(name='Varme', level=2, parent=FasteUdgifter_id),
-            Category(name='Vand', level=2, parent=FasteUdgifter_id),
-            Category(name='Internet', level=2, parent=FasteUdgifter_id),
-            Category(name='Telefon', level=2, parent=FasteUdgifter_id),
-            Category(name='Forsikring', level=2, parent=FasteUdgifter_id),
-            Category(name='Lagerrum', level=2, parent=FasteUdgifter_id),
-            Category(name='A-Kasse', level=2, parent=FasteUdgifter_id),
-            Category(name='Fagforening', level=2, parent=FasteUdgifter_id),
-
-            Category(name='Streaming', level=2, parent=Underholdning_id),
-            Category(name='Restaurant', level=2, parent=Underholdning_id),
-            Category(name='Biograf', level=2, parent=Underholdning_id),
-
-            Category(name='3D Print', level=2, parent=Hobby_id),
-            Category(name='Stickers', level=2, parent=Hobby_id),
-            Category(name='Stationary', level=2, parent=Hobby_id),
-            Category(name='Electronik', level=2, parent=Hobby_id)
-        ]
-        db.session.add_all(subcategories)
-        db.session.commit()
-
-        
-
-        print("Initial rows inserted successfully!")
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error seeding the database: {e}")
+def get_id(name):
+    id = (
+        Category.query
+        .with_entities(Category.id)
+        .filter_by(name=name, level=1)
+        .scalar()
+    )
+    return id
 
 
 @app.route('/api/categories/<int:category_id>/subcategories', methods=['GET'])
@@ -158,31 +106,52 @@ def transactions():
     )
 
 
-@app.route("/categories", methods=["GET", "POST"])
+@app.route('/categories', methods=['GET', 'POST'])
 def manage_categories():
-    """View to display and add categories."""
-    if request.method == "POST":
-        # Get form data
-        name = request.form.get("name")
-        level = request.form.get("level")
-
-        if name and level:
-            # Add the new category to the database
-            category = Category(name=name, level=int(level))
-            db.session.add(category)
+    """View to display and manage categories."""
+    if request.method == 'POST':
+        # Handle form submission for adding or editing a category
+        category_id = request.form.get('id')  # For editing existing categories
+        name = request.form.get('name')
+        level = int(request.form.get('level'))
+        parent_id = request.form.get('parent')  # Parent category, optional
+        
+        if not name or not level:
+            flash("Name and Level are required!", "error")
+            return redirect(url_for('manage_categories'))
+        
+        if category_id:  # Update an existing category
+            category = Category.query.get(category_id)
+            if category:
+                category.name = name
+                category.level = level
+                category.parent = parent_id if parent_id else None
+                db.session.commit()
+                flash("Category updated successfully!", "success")
+            else:
+                flash("Category not found!", "error")
+        else:  # Add a new category
+            new_category = Category(
+                name=name,
+                level=level,
+                parent=parent_id if parent_id else None
+            )
+            db.session.add(new_category)
             db.session.commit()
-            return redirect(url_for("manage_categories"))
-
-    # Fetch all categories grouped by levels
-    level_1_categories = Category.query.filter_by(level=1).all()
-    level_2_categories = Category.query.filter_by(level=2).all()
-    level_3_categories = Category.query.filter_by(level=3).all()
+            flash("Category added successfully!", "success")
+        
+        return redirect(url_for('manage_categories'))
+    
+    # Fetch categories grouped by levels for display
+    categories_level_1 = Category.query.filter_by(level=1).all()
+    categories_level_2 = Category.query.filter_by(level=2).all()
+    categories_level_3 = Category.query.filter_by(level=3).all()
 
     return render_template(
-        "categories.html",
-        level_1_categories=level_1_categories,
-        level_2_categories=level_2_categories,
-        level_3_categories=level_3_categories,
+        'manage_categories.html',
+        level_1_categories=categories_level_1,
+        level_2_categories=categories_level_2,
+        level_3_categories=categories_level_3
     )
        
 
@@ -237,6 +206,84 @@ def upload_csv():
         return redirect(url_for('upload_csv'))
 
     return render_template('upload_csv.html')
+
+
+@app.route('/sub_transactions/<int:transaction_id>', methods=['GET', 'POST'])
+def divided_trasaction(transaction_id):
+
+    if "create" in request.form:
+        transaction = Transaction.query.filter(Transaction.id == transaction_id).one()
+        print(request.form.get("category_1"))
+        new_entry = SubTransaction(
+            date = transaction.date,
+            account = transaction.account,
+            description = "ID " + str(transaction_id) + ": " + request.form.get("description"),
+            amount = request.form.get("amount", 0),
+            category_level_1 = request.form.get("category_1") if len(request.form.get("category_1")) > 0 else None,
+            category_level_2 = request.form.get("category_2") if len(request.form.get("category_2")) > 0 else None,
+            category_level_3 = request.form.get("category_3") if len(request.form.get("category_3")) > 0 else None,
+            parent_transaction = transaction
+        )
+        transaction.category_level_1 = Category.query.filter_by(level=1, name="Delt Betaling").one().id
+        transaction.category_level_2 = None
+        transaction.category_level_3 = None
+        try: 
+            db.session.add(new_entry)
+            db.session.commit()
+        except Exception as e:
+            print("Error while adding new subcategory " + e)
+        
+        return redirect('/sub_transactions/' + str(transaction_id))
+    
+
+    if "delete" in request.form:
+        transaction = Transaction.query.filter(Transaction.id == transaction_id).one()
+        try:
+            SubTransaction.query.filter_by(id=request.form.get("id")).delete()
+            db.session.commit()
+        except Exception as e:
+            print("Error while deleting subcategory " + e)
+        return redirect('/sub_transactions/' + str(transaction_id))
+
+
+
+    category1 = aliased(Category)
+    category2 = aliased(Category)
+    category3 = aliased(Category)
+    record = (
+        db.session.query(
+            Transaction,
+            category1.name.label('category_level_1_name'),
+            category2.name.label('category_level_2_name'),
+            category3.name.label('category_level_3_name')  # Add the resolved name
+        )
+        .select_from(Transaction)
+        .outerjoin(category1, Transaction.category_level_1 == category1.id)
+        .outerjoin(category2, Transaction.category_level_2 == category2.id)
+        .outerjoin(category3, Transaction.category_level_3 == category3.id)
+        .filter(Transaction.id == transaction_id)
+        .one()
+    )
+            
+    subtransactions = record.Transaction.sub_transactions
+    categories_level_1 = Category.query.filter_by(level=1).all()
+    categories_level_2 = Category.query.filter_by(level=2).all()
+    categories_level_3 = Category.query.filter_by(level=3).all()
+    sum = 0
+    for subtrans in subtransactions:
+        sum += subtrans.amount
+
+    remaining = record.Transaction.amount - sum
+    return render_template(
+        "sub_transactions.html",
+        transaction=record,
+        sub_transactions=subtransactions,
+        remaining=remaining,
+        category1s=categories_level_1 if len(categories_level_1) > 0 else [],
+        category2s=categories_level_2 if len(categories_level_2) > 0 else [],
+        category3s=categories_level_3 if len(categories_level_3) > 0 else [],
+    )
+    
 
 if __name__ == "__main__":
     app.run(debug=True)

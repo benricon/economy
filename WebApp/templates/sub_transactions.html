@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Attach event listeners to all Category 1 dropdowns
+        document.querySelectorAll('[id^="category_1_"]').forEach(function (dropdown) {
+            dropdown.addEventListener('change', function () {
+                const transactionId = this.id.split('_').pop(); // Extract the transaction ID
+                const selectedCategory1 = this.value;
+                const category2Dropdown = document.getElementById(`category_2_${transactionId}`);
+    
+                // Clear existing Category 2 options
+                category2Dropdown.innerHTML = '<option value="">Not Categorized</option>';
+    
+                if (selectedCategory1) {
+                    // Fetch related Category 2 options via AJAX
+                    fetch(`/api/categories/${selectedCategory1}/subcategories`)
+                        .then(response => response.json())
+                        .then(data => {
+                            data.forEach(subcategory => {
+                                const option = document.createElement('option');
+                                option.value = subcategory.id;
+                                option.textContent = subcategory.name;
+                                category2Dropdown.appendChild(option);
+                            });
+                        })
+                        .catch(error => console.error('Error fetching subcategories:', error));
+                }
+            });
+        });
+    });
+    </script>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <h1>Transactions</h1>
+    
+
+            <!-- Transactions Table -->
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Date</th>
+                        <th>Account</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Category 1</th>
+                        <th>Category 2</th>
+                        <th>Category 3</th>
+                        <th>Categorised</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ transaction.Transaction.id }}</td>
+                        <td>{{ transaction.Transaction.date }}</td>
+                        <td>{{ transaction.Transaction.account }}</td>
+                        <td>{{ transaction.Transaction.description }}</td>
+                        <td>{{ transaction.Transaction.amount }}</td>
+                        <td>{{ transaction.category_level_1_name }}</td>
+                        <td>{{ transaction.category_level_2_name }}</td>
+                        <td>{{ transaction.category_level_3_name }}<td>
+                            {{ transaction.is_categorized }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h1>Sub Transactions</h1>
+    
+
+            <!-- Transactions Table -->
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Category 1</th>
+                        <th>Category 2</th>
+                        <th>Category 3</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if remaining < 0 %}
+                    <tr>
+                        <td>Ny</td>
+                        <td><input form="create_subtransaction" name="description" type="text"></td>
+                        <td><input form="create_subtransaction" name="amount" type="number" step="any" /></td>
+                        <td>
+                            <select form="create_subtransaction" id="category_1_000000" name="category_1" class="form-select">
+                                <option value="">Not Categorized</option>
+                                {% for category1 in category1s %}
+                                    <option value="{{ category1.id }}">{{ category1.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <select form="create_subtransaction" id="category_2_000000" name="category_2" class="form-select">
+                                <option value="">Not Categorized</option>
+                                {% for category2 in category2s %}
+                                    <option value="{{ category2.id }}" {% if category2.id == transaction.category_level_2 %}selected{% endif %}>{{ category2.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <select form="create_subtransaction" id="category_3_000000" name="category_3" class="form-select">
+                                <option value="">Not Categorized</option>
+                                {% for category3 in category3s %}
+                                    <option value="{{ category3.id }}" {% if category3.id == transaction.category_level_3 %}selected{% endif %}>{{ category3.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <form id="create_subtransaction" method="post">
+                                <button name="create" type="submit" class="btn btn-primary">Create</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% for subtransaction in sub_transactions %}
+                    <tr>
+                        <td>{{ subtransaction.id }}</td>
+                        <td>{{ subtransaction.description }}</td>
+                        <td><input form="rowid_{{subtransaction.id}}" name="amount" type="number" step="any" value="{{ subtransaction.amount }}" /></td>
+                        <td>
+                            <select form="rowid_{{subtransaction.id}}" id="category_1_{{subtransaction.id}}" name="category_1" class="form-select">
+                                <option value="">Not Categorized</option>
+                                {% for category1 in category1s %}
+                                    <option value="{{ category1.id }}" {% if category1.id == subtransaction.category_level_1 %}selected{% endif %}>{{ category1.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <select form="rowid_{{subtransaction.id}}" id="category_2_{{subtransaction.id}}" name="category_2" class="form-select">
+                                <option value="">Not Categorized</option>
+                                {% for category2 in category2s %}
+                                    <option value="{{ category2.id }}" {% if category2.id == subtransaction.category_level_2 %}selected{% endif %}>{{ category2.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <select form="rowid_{{subtransaction.id}}" id="category_3_{{subtransaction.id}}" name="category_3" class="form-select">
+                                <option value="">Not Categorized</option>
+                                {% for category3 in category3s %}
+                                    <option value="{{ category3.id }}" {% if category3.id == subtransaction.category_level_3 %}selected{% endif %}>{{ category3.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <form id="srowid_{{subtransaction.id}}" method="post">
+                                <input name=id type="hidden" value="{{subtransaction.id}}">
+                                <button name="update" type="submit" class="btn btn-primary">Update</button>
+                                <button name="delete" type="submit" class="btn btn-primary">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr>
+                        <td></td>
+                        <td>Manglende beløb</td>
+                        <td>{{ remaining }}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+
+
+                    {% if not sub_transactions %}
+                    <tr>
+                        <td colspan="6" class="text-center">No transactions found.</td>
+                    </tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+
+{% endblock %}

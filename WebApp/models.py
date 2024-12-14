@@ -12,10 +12,19 @@ class TransactionBase(db.Model):
     account = db.Column(db.String(50), nullable=False)
     description = db.Column(db.String(255), nullable=False)
     amount = db.Column(db.Numeric(10, 2), nullable=False)
-    category_level_1 = db.Column(db.Integer, db.ForeignKey('categories.id'))
-    category_level_2 = db.Column(db.Integer, db.ForeignKey('categories.id'))
-    category_level_3 = db.Column(db.Integer, db.ForeignKey('categories.id'))
     is_categorized = db.Column(db.Boolean, default=False)
+
+    @declared_attr
+    def category_level_1(cls):
+        return db.Column(db.Integer, db.ForeignKey('categories.id'))
+
+    @declared_attr
+    def category_level_2(cls):
+        return db.Column(db.Integer, db.ForeignKey('categories.id'))
+
+    @declared_attr
+    def category_level_3(cls):
+        return db.Column(db.Integer, db.ForeignKey('categories.id'))
 
     @declared_attr
     def __tablename__(cls):
