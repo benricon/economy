@@ -15,4 +15,5 @@ COPY . .
 EXPOSE 5000
 
 # Command to run the application
-CMD ["python", "-m", "flask", "run", "--host=0.0.0.0"]
+RUN chmod u+x /app/entrypoint.sh
+ENTRYPOINT ["/app/entrypoint.sh"]
