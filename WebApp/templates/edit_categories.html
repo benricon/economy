@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+    <ul>
+        {% for message in messages %}
+            <li>{{ message }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+{% endwith %}
+
+<form method="post">
+    <label for="name" class="form-label">Navn</label>
+    <input id="name" name="name" type="text" value="{{ category.name }}" />
+    <label for="level" class="form-label">Level</label>
+    <select name="level" id="level" required>
+        <option value="1" {% if 1 == category.level %}selected{% endif %}>Level 1</option>
+        <option value="2" {% if 2 == category.level %}selected{% endif %}>Level 2</option>
+        <option value="3" {% if 3 == category.level %}selected{% endif %}>Level 3</option>
+    </select>
+    <label for="parent" class="form-label">Parent(only for level 2)</label>
+    <select id="parent" name="parent" class="form-select">
+        <option value="">Not Categorized</option>
+        {% for parent in parents %}
+            <option value="{{ parent.id }}" {% if parent.id == category.parent_id %}selected{% endif %}>{{ parent.name }}</option>
+        {% endfor %}
+    </select>
+    
+    <input name=id type="hidden" value="{{category.id}}">
+    {% if category %}
+    <button name="update" type="submit" class="btn btn-primary">Update</button>  
+    {% endif %} 
+    {% if not category %}
+    <button name="create" type="submit" class="btn btn-primary">Create</button>
+    {% endif %} 
+    <button name="delete" type="submit" class="btn btn-primary">Delete</button>
+</form>
+
+{% endblock %}

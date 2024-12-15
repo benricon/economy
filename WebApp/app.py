@@ -101,59 +101,91 @@ def transactions():
         category1s=categories_level_1 if len(categories_level_1) > 0 else [],
         category2s=categories_level_2 if len(categories_level_2) > 0 else [],
         category3s=categories_level_3 if len(categories_level_3) > 0 else [],
-        
-        
     )
 
 
 @app.route('/categories', methods=['GET', 'POST'])
 def manage_categories():
     """View to display and manage categories."""
-    if request.method == 'POST':
-        # Handle form submission for adding or editing a category
-        category_id = request.form.get('id')  # For editing existing categories
-        name = request.form.get('name')
-        level = int(request.form.get('level'))
-        parent_id = request.form.get('parent')  # Parent category, optional
-        
-        if not name or not level:
-            flash("Name and Level are required!", "error")
-            return redirect(url_for('manage_categories'))
-        
-        if category_id:  # Update an existing category
-            category = Category.query.get(category_id)
-            if category:
-                category.name = name
-                category.level = level
-                category.parent = parent_id if parent_id else None
-                db.session.commit()
-                flash("Category updated successfully!", "success")
-            else:
-                flash("Category not found!", "error")
-        else:  # Add a new category
-            new_category = Category(
-                name=name,
-                level=level,
-                parent=parent_id if parent_id else None
-            )
-            db.session.add(new_category)
-            db.session.commit()
-            flash("Category added successfully!", "success")
-        
+    if request.method == 'POST':        
         return redirect(url_for('manage_categories'))
     
     # Fetch categories grouped by levels for display
     categories_level_1 = Category.query.filter_by(level=1).all()
-    categories_level_2 = Category.query.filter_by(level=2).all()
     categories_level_3 = Category.query.filter_by(level=3).all()
-
     return render_template(
         'manage_categories.html',
         level_1_categories=categories_level_1,
-        level_2_categories=categories_level_2,
-        level_3_categories=categories_level_3
+        level_3_categories=categories_level_3,
     )
        
+
+@app.route('/categories/<int:category_id>', methods=['GET', 'POST'])
+def edit_categories(category_id):
+
+    if request.method == 'POST':
+        if "delete" in request.form:
+            try:
+                category = Category.query.filter_by(id=category_id).one()
+                if len(category.children) != 0:
+                    flash("Object still has children")
+                    return redirect(url_for('edit_categories', category_id=category_id))
+                db.session.delete(category)
+                db.session.commit()
+            except Exception as e:
+                flash(e)
+            return redirect(url_for('manage_categories'))
+        
+        if "update" in request.form:
+            try:
+                category = Category.query.filter_by(id=category_id).one()
+                category.name = request.form.get("name")
+                category.level = request.form.get("level")
+                category.parent_id = request.form.get("parent")
+                db.session.commit()
+            except Exception as e:
+                flash(e)
+            return redirect(url_for('edit_categories', category_id=category_id))
+        
+        if "create" in request.form:
+
+            try:
+                category = Category(
+                    name = request.form.get("name"),
+                    level = int(request.form.get("level"))
+                )
+
+                if int(request.form.get("level")) == 2 and len(request.form.get("parent")) > 0:
+                    category.parent_id = request.form.get("parent")
+                elif int(request.form.get("level")) == 2:
+                    flash("Level 2 must have parent")
+                    return redirect(url_for('edit_categories', category_id=category_id))
+                if len(Category.query.filter_by(name = request.form.get("name")).all()) > 0:
+                    flash("Name already exists")
+                    return redirect(url_for('edit_categories', category_id=category_id))                   
+                db.session.add(category)
+                db.session.commit()
+            except Exception as e:
+                flash(e)
+            return redirect(url_for('manage_categories'))
+        
+
+                
+        flash('No file part', 'error')
+        return redirect(url_for('edit_categories', category_id=category_id))
+        #return redirect(url_for('manage_categories'))
+    
+    # Fetch categories grouped by levels for display
+    if category_id != 0:
+        category = Category.query.filter_by(id=category_id).one()
+    else:
+        category = None
+    parents = Category.query.filter_by(level=1).all()
+    return render_template(
+        'edit_categories.html',
+        category=category,
+        parents=parents
+    )
 
 @app.route('/upload-csv', methods=['GET', 'POST'])
 def upload_csv():
@@ -213,11 +245,12 @@ def divided_trasaction(transaction_id):
 
     if "create" in request.form:
         transaction = Transaction.query.filter(Transaction.id == transaction_id).one()
-        print(request.form.get("category_1"))
+
+
         new_entry = SubTransaction(
             date = transaction.date,
             account = transaction.account,
-            description = "ID " + str(transaction_id) + ": " + request.form.get("description"),
+            description=f"ID {transaction_id}: {request.form.get('description')}",
             amount = request.form.get("amount", 0),
             category_level_1 = request.form.get("category_1") if len(request.form.get("category_1")) > 0 else None,
             category_level_2 = request.form.get("category_2") if len(request.form.get("category_2")) > 0 else None,

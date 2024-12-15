@@ -50,8 +50,12 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     level = db.Column(db.Integer, nullable=False)
     name = db.Column(db.String, unique=True, nullable=False)
-    parent = db.Column(db.Integer, db.ForeignKey('categories.id'))
-
+    parent_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
+    parent = db.relationship(
+        'Category', 
+        remote_side=[id],  # Refers to the 'id' column of this table
+        backref='children'  # Allows easy access to child categories
+    )
 
 
 
